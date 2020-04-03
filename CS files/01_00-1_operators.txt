@@ -1,0 +1,21 @@
++ addition
+- subtraction
+* multiplication
+/ division
+
+% modulus
+
++= add to self
+-= subtract from self
+*= multiply by self
+/= divide by self
+++ add 1 to self
+
+< smaller than
+> larger than
+<= smaller than or equal to
+>= larger than or equal to
+== equals
+&& AND operator
+|| OR operator
+!= NOT operator
