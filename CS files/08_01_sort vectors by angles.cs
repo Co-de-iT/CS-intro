@@ -10,7 +10,7 @@ using Grasshopper.Kernel;
 using Grasshopper.Kernel.Data;
 using Grasshopper.Kernel.Types;
 
-
+using System.Linq;
 
 /// <summary>
 /// This class will be instantiated on demand by the Script component.
@@ -52,83 +52,44 @@ public class Script_Instance : GH_ScriptInstance
   /// Output parameters as ref arguments. You don't have to assign output parameters, 
   /// they will have a default value.
   /// </summary>
-  private void RunScript(double x, double y, ref object A)
+  private void RunScript(Vector3d V, ref object VSort, ref object vStar)
   {
-        // dealing with delegates - or how to pass functions as parameters to other functions
-
-    // ----> start from the Custom additional code below
-
-    // continue from here when done:
-
-    // the Foo function can be called passing as parameter directly the name of
-    // any function compatible with the delegate signature:
-    Foo(ComputeAverage, x, y); // this will pass the ComputeAverage function as parameter
-    Foo(ComputeSquaredSum, x, y); // this will pass the ComputeSquaredSum function as parameter
-
-    // another option is to define instances of BynaryOperator (remember, it's a data type)
-    BinaryOperator myFavoriteBinaryOperator = ComputeAverage;
-    BinaryOperator yourFavoriteBinaryOperator = ComputeSquaredSum;
-    // ... and then pass these to the Foo funciton as parameters
-    Foo(myFavoriteBinaryOperator, x, y);
-    Foo(yourFavoriteBinaryOperator, x, y);
-
-    // I can also use an anonymous function as a parameter for the delegate
-    // provided that it is compatible with the delegate signature:
-    Foo((a, b) => {return a + b;}, x, y);
-    // C# automatically assumes that a,b are doubles but the function body
-    // will have to return a double as well
-    // see explanation on labda expression and anonymous functions in this
-    // GH definition
-
+        VSort = sortVector(V); // sorted vectors
+    vStar = vectorStar; // as a check, to verify that vectorStar is not modified
   }
 
   // <Custom additional code> 
-    /*
+    public static Vector3d[] vectorStar = new Vector3d[]{new Vector3d(-1, 0, 0), new Vector3d(0, -1, 0), new Vector3d(0, 0, -1),
+    new Vector3d(1, 0, 0), new Vector3d(0, 1, 0), new Vector3d(0, 0, 1)};
 
-  a delegate is a data type that allows me to pass functions as variables,
-  a delegate defines a new data type that represents any function that
-  has a matching signature with the delegate
-
-  Let's see an example of delegate declaration:
-
-  delegate <type> <name>(<parameters>);
-
-  */
-
-  delegate double BinaryOperator(double a, double b);
-
-  /*
-   BinaryOperator is now a new data type.
-   Just as with classes, first I declare my delegate as a new data type,
-   but if I need one I have to declare an instance, like:
-
- BynaryOperator myOp;
-
- now myOp can be any function that has the same signature of the delegate
- (in this case, one that accepts 2 doubles as parameters and returns a double)
-
- Here are 2 functions whose signature match the delegate BinaryOperator:
- */
-
-  double ComputeAverage (double first, double second)
+  Vector3d[] sortVector(Vector3d v)
   {
-    return (first + second) * 0.5;
+
+    double[] angles = new double[vectorStar.Length];
+    v.Unitize();
+
+    // fill angles array
+    angles = vectorStar.Select(x => Vector3d.VectorAngle(v, x)).ToArray(); //using System.Linq;
+    //    for(int i = 0; i < vSorted.Length; i++)
+    //      angles[i] = Vector3d.VectorAngle(v, vSorted[i]);
+
+    //sorting vectors according to angles
+    // taken from: https://stackoverflow.com/questions/29591992/sorting-multiple-arrays-c-sharp
+    // if you are wondering what the _ in (_,i) is, check Discards:
+    // https://docs.microsoft.com/en-us/dotnet/csharp/discards
+    Vector3d[] vSort = (Vector3d[]) vectorStar
+      .Select((_, i) => new // this creates a new anonymous class with angles and vectors as fields
+      {
+        ang = angles[i],
+        vec = vectorStar[i]
+        })
+      .OrderBy(x => x.ang) // sort the anonymous class array by angles
+      .Select(x => x.vec) // the new class is an Anonymous type - we need to extract the vectors field only
+      .ToArray(); // the result is a generic List class, must be converted to array
+
+    return vSort;
   }
 
-  double ComputeSquaredSum(double m, double n)
-  {
-    return (m + n) * (m + n);
-  }
-
-
-  // Finally, here's a function that has the delegate as a parameter:
-  void Foo(BinaryOperator bOperator, double a, double b)
-  {
-    // this will store the result of the function that will be passed as delegate
-    double result = bOperator(a, b);
-    // and then print it
-    Print(result.ToString());
-  }
 
   // </Custom additional code> 
 
@@ -155,54 +116,74 @@ public class Script_Instance : GH_ScriptInstance
     this. doc = this.RhinoDocument;
 
     //2. Assign input parameters
-        double x = default(double);
+        Vector3d V = default(Vector3d);
     if (inputs[0] != null)
     {
-      x = (double)(inputs[0]);
-    }
-
-    double y = default(double);
-    if (inputs[1] != null)
-    {
-      y = (double)(inputs[1]);
+      V = (Vector3d)(inputs[0]);
     }
 
 
 
     //3. Declare output parameters
-      object A = null;
+      object VSort = null;
+  object vStar = null;
 
 
     //4. Invoke RunScript
-    RunScript(x, y, ref A);
+    RunScript(V, ref VSort, ref vStar);
       
     try
     {
       //5. Assign output parameters to component...
-            if (A != null)
+            if (VSort != null)
       {
-        if (GH_Format.TreatAsCollection(A))
+        if (GH_Format.TreatAsCollection(VSort))
         {
-          IEnumerable __enum_A = (IEnumerable)(A);
-          DA.SetDataList(1, __enum_A);
+          IEnumerable __enum_VSort = (IEnumerable)(VSort);
+          DA.SetDataList(1, __enum_VSort);
         }
         else
         {
-          if (A is Grasshopper.Kernel.Data.IGH_DataTree)
+          if (VSort is Grasshopper.Kernel.Data.IGH_DataTree)
           {
             //merge tree
-            DA.SetDataTree(1, (Grasshopper.Kernel.Data.IGH_DataTree)(A));
+            DA.SetDataTree(1, (Grasshopper.Kernel.Data.IGH_DataTree)(VSort));
           }
           else
           {
             //assign direct
-            DA.SetData(1, A);
+            DA.SetData(1, VSort);
           }
         }
       }
       else
       {
         DA.SetData(1, null);
+      }
+      if (vStar != null)
+      {
+        if (GH_Format.TreatAsCollection(vStar))
+        {
+          IEnumerable __enum_vStar = (IEnumerable)(vStar);
+          DA.SetDataList(2, __enum_vStar);
+        }
+        else
+        {
+          if (vStar is Grasshopper.Kernel.Data.IGH_DataTree)
+          {
+            //merge tree
+            DA.SetDataTree(2, (Grasshopper.Kernel.Data.IGH_DataTree)(vStar));
+          }
+          else
+          {
+            //assign direct
+            DA.SetData(2, vStar);
+          }
+        }
+      }
+      else
+      {
+        DA.SetData(2, null);
       }
 
     }
