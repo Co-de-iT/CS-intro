@@ -84,33 +84,38 @@ public class Script_Instance : GH_ScriptInstance
         tree.Insert(P[i], i);
 
       // perform search
-      
+
       // declare temporary lists for points and indexes
       List < Point3d > closest = new List<Point3d>();
       List <int> closestInd = new List<int>();
 
-      // option 1.1: EventHandler declared on the fly
-      EventHandler<RTreeEventArgs> rTreeCallback = (object sender, RTreeEventArgs e) =>
-        {
-        closest.Add(pts[e.Id]);
-        closestInd.Add(e.Id);
-        };
+      // option 1.1: EventHandler callback function declared on the fly
+      //      EventHandler<RTreeEventArgs> rTreeCallback = (object sender, RTreeEventArgs e) =>
+      //        {
+      //        closest.Add(pts[e.Id]);
+      //        closestInd.Add(e.Id);
+      //        };
 
       for (int i = 0; i < P0.Count; i++)
       {
         closest = new List<Point3d>();
         closestInd = new List<int>();
-        
+
         // option 1.1 & 1.2: call to external function
-        tree.Search(new Sphere(P0[i], radius), rTreeCallback);
-        
-        //    option 2: use embedded anonymous function with lambda syntax
-        //    tree.Search(new Sphere(P0, radius), (object sender, RTreeEventArgs e) =>
-        //      {
-        //      cl.Add(pts[e.Id]);
-        //      ci.Add(e.Id);
-        //      });
-        
+        // tree.Search(new Sphere(P0[i], radius), rTreeCallback);
+
+        /*
+         option 2: use embedded anonymous function with lambda syntax
+         the anonymous functions replaces the delegate callback function;
+         the delegate parameters and return type aere already known, so no 
+         need to specify their type, which are object and RTreeEventArgs respectively
+        */
+        tree.Search(new Sphere(P0[i], radius), (sender, e) =>
+          {
+          closest.Add(pts[e.Id]);
+          closestInd.Add(e.Id);
+          });
+
         // add lists to data trees
         cl.AddRange(closest, new GH_Path(i));
         ci.AddRange(closestInd, new GH_Path(i));
@@ -139,8 +144,8 @@ public class Script_Instance : GH_ScriptInstance
 
   // option 1.2: declare callback function as an external one
   //  private void rTreeCallback(object sender, RTreeEventArgs e){
-  //    cl.Add(pts[e.Id]);
-  //    ci.Add(e.Id);
+  //  closest.Add(s[e.Id]);
+  //  closestInd.Add(e.Id);
   //  }
 
   // </Custom additional code> 
