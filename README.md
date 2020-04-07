@@ -1,3 +1,5 @@
+![gd+erosion](https://raw.githubusercontent.com/Co-de-iT/CS-intro/master/%40%20media/erosion.jpg)
+  
 # CS-intro
   
 This repository contains the Grasshopper definitions for a progressive introduction to C# in Grasshopper.  
@@ -17,3 +19,5 @@ This repository contains the Grasshopper definitions for a progressive introduct
 
 #### GH_CSharp/CS files
 Contains the source CS files from the examples above.  
+  
+![Co-de-iT](https://raw.githubusercontent.com/Co-de-iT/CS-intro/master/%40%20media/Co-de-iT%20logo%20black_no%20text.png)
