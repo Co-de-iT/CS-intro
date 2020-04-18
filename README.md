@@ -8,7 +8,8 @@ This repository contains the Grasshopper definitions for a progressive introduct
 **CS_01_data 01.gh** - data types in C# - part 1  
 **CS_02_data 02.gh** - data types in C# - part 2 - loops and conditional statements  
 **CS_03_functions.gh** - functions in C#  
-**CS_04_classes.gh** - classes and objects in C#  
+**CS_04_0_classes.gh** - classes and objects in C#  
+**CS_04_1_Langton's Ant.gh** - Langton's Ant algorithm in C#  
 **CS_05_0_gradient descent.gh** - gradient descent example in C#  
 **CS_05_1_gradient descent - erosion.gh** - gradient descent erosion example in C#  
 **CS_06_delegates + lambda expression.gh** - explanation of delegates, anonymous functions and lambda syntax in C#  
