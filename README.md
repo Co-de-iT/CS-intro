@@ -3,6 +3,11 @@
 # CS-intro
   
 This repository contains the Grasshopper definitions for a progressive introduction to C# in Grasshopper.  
+
+## usage
+Examples work in Grasshopper + Rhino 7. Place Noises.dll in your Grasshopper/Libraries folder (needed for a few examples only).  
+
+## examples
   
 **CS_00_intro.gh** - introduction to C# programming in Grasshopper  
 **CS_01_data 01.gh** - data types in C# - part 1  
@@ -18,7 +23,10 @@ This repository contains the Grasshopper definitions for a progressive introduct
 **CS_09_MultiThreading-serialization-GHtypes.gh** - Multithreading, serialization and GH Types in C#   
 **CS_10_MultiThreading-Diffusion.gh** - Multithreading and diffusion algorithm in a 2D matrix    
 
-#### GH_CSharp/CS files
-Contains the source CS files from the examples above.  
+#### CS files
+Contains the source CS files from the examples.  
+
+#### support files
+Contains the support files needed for a couple of examples.  
   
 ![Co-de-iT](https://raw.githubusercontent.com/Co-de-iT/CS-intro/master/%40%20media/Co-de-iT%20logo%20black_no%20text.png)
