@@ -54,7 +54,7 @@ public class Script_Instance : GH_ScriptInstance
   /// Output parameters as ref arguments. You don't have to assign output parameters, 
   /// they will have a default value.
   /// </summary>
-  private void RunScript(Point3d P0, int n, double evap, bool wrap, bool reset, bool go, bool MT, ref object P, ref object cPind, ref object nIndexes, ref object S)
+  private void RunScript(List<Point3d> P0, List<double> strength, int n, double evap, double addC, double lossC, bool wrap, bool reset, bool go, bool MT, ref object P, ref object cPind, ref object nIndexes, ref object S)
   {
         // reset/initialize
 
@@ -63,24 +63,31 @@ public class Script_Instance : GH_ScriptInstance
 
       diff = new Diffusion(n, n, wrap);
       ptsList = new Point3dList(diff.ptsArray); // create a Point3dList for faster closest point calculation
-      cP = ptsList.ClosestIndex(P0); // find index of closest point to attractor
-      diff.stigVal[cP] = 1;
+      cP = new List<int>();
+      int pInd;
+      foreach(Point3d p in P0)
+      {
+        pInd = ptsList.ClosestIndex(p);
+        cP.Add(pInd); // find index of closest point to attractor
+        diff.stigVal[pInd] = 1;
+      }
       c = 0; // reset counter
     }
 
     if (go)
     {
       diff.evap = evap;
-      cP = ptsList.ClosestIndex(P0); // find index of closest point to attractor
+      diff.addCoeff = addC;
+      diff.lossCoeff = lossC;
 
       if(MT) diff.UpdateMT(); else diff.Update();
-      diff.stigVal[cP] = 1;
+      for (int i = 0; i < cP.Count; i++) diff.stigVal[cP[i]] += strength[i];
       c++;
       Component.ExpireSolution(true);
     }
 
-    P = diff.ptsArray.Select(x => new GH_Point(x));
-    S = diff.stigVal.Select(x => new GH_Number(x));
+    P = diff.ptsArray.Select(x => new GH_Point(x)).ToArray();
+    S = diff.stigVal.Select(x => new GH_Number(x)).ToArray();
     cPind = cP;
     // nIndexes = diff.GetNeighIndexes();
   }
@@ -88,8 +95,8 @@ public class Script_Instance : GH_ScriptInstance
   // <Custom additional code> 
     Diffusion diff;
   Point3dList ptsList;
-  int c, cP;
-
+  int c;
+  List<int> cP;
 
   // array of diffusion coefficients (in CCW order - 4 principal directions first, then corners)
   public static double[] dC = {0.2, 0.2, 0.2, 0.2, 0.05, 0.05, 0.05, 0.05};
@@ -103,13 +110,16 @@ public class Script_Instance : GH_ScriptInstance
     public int x;
     public int y;
     public double evap;
+    public double addCoeff;
+    public double lossCoeff;
     public bool wrap;
     public double[] stigVal;
     public double[] dC = {0.2, 0.2, 0.2, 0.2, 0.05, 0.05, 0.05, 0.05};
-
+    Random rnd;
 
     public Diffusion(int x, int y, bool wrap)
     {
+      rnd = new Random();
       this.x = x;
       this.y = y;
       this.wrap = wrap;
@@ -122,6 +132,7 @@ public class Script_Instance : GH_ScriptInstance
     public void UpdateMT()
     {
       double[] stigMod = new double[stigVal.Length];
+      double[] stigLoss = new double[stigVal.Length];
 
       // instead of calculating an outgoing value (writing to neighbours)
       // an incoming contribution from neighbours is calculated (reading from neighbours)
@@ -129,14 +140,18 @@ public class Script_Instance : GH_ScriptInstance
       Parallel.For(0, stigVal.Length, i =>
         {
         for(int j = 0; j < nInd[i].Length; j++)
+        {
           stigMod[i] += stigVal[nInd[i][j]] * nDiff[i][j];
+          stigLoss[i] += stigVal[i] * nDiff[i][j];
+        }
         });
 
       // still, calculation must be split in 2 parts: calculating modification and value update
       Parallel.For(0, stigVal.Length, i =>
         {
-        stigVal[i] += stigMod[i];
-        stigVal[i] *= evap;
+        stigVal[i] = (stigVal[i] + stigMod[i] * addCoeff - stigLoss[i] * lossCoeff) * Math.Pow(evap, 2);
+        //        stigVal[i] += stigMod[i];
+        //        stigVal[i] *= evap;
         //if (stigVal[i] > 1) stigVal[i] = 1;
         stigVal[i] = Math.Min(stigVal[i], 1);
         });
@@ -147,6 +162,7 @@ public class Script_Instance : GH_ScriptInstance
     public void Update()
     {
       double[] stigMod = new double[stigVal.Length];
+      double[] stigLoss = new double[stigVal.Length];
 
       // instead of calculating an outgoing value (writing to neighbours)
       // an incoming contribution from neighbours is calculated (reading from neighbours)
@@ -154,14 +170,18 @@ public class Script_Instance : GH_ScriptInstance
       for(int i = 0; i < stigVal.Length; i++)
       {
         for(int j = 0; j < nInd[i].Length; j++)
+        {
           stigMod[i] += stigVal[nInd[i][j]] * nDiff[i][j];
+          stigLoss[i] += stigVal[i] * nDiff[i][j];
+        }
       }
 
       // still, calculation must be split in 2 parts: calculating modification and value update
       for(int i = 0; i < stigVal.Length; i++)
       {
-        stigVal[i] += stigMod[i];
-        stigVal[i] *= evap;
+        stigVal[i] = (stigVal[i] + stigMod[i] * addCoeff - stigLoss[i] * lossCoeff) * evap;
+        //        stigVal[i] += stigMod[i];
+        //        stigVal[i] *= evap;
         //if (stigVal[i] > 1) stigVal[i] = 1;
         stigVal[i] = Math.Min(stigVal[i], 1);
       }
@@ -169,24 +189,24 @@ public class Script_Instance : GH_ScriptInstance
 
     }
 
-    public void UpdateOld()
-    {
-      double[] stigMod = new double[stigVal.Length];
-
-      for(int i = 0; i < stigVal.Length; i++)
-        for(int j = 0; j < nInd[i].Length; j++)
-          stigMod[nInd[i][j]] += stigVal[i] * dC[j] * 1;
-
-      Parallel.For(0, stigVal.Length, i =>
-        //for(int i = 0; i < stigVal.Length; i++)
-        {
-        stigVal[i] += stigMod[i];
-        stigVal[i] *= evap;
-        //if (stigVal[i] > 1) stigVal[i] = 1;
-        stigVal[i] = Math.Min(stigVal[i], 1);
-
-        });
-    }
+    //    public void UpdateOld()
+    //    {
+    //      double[] stigMod = new double[stigVal.Length];
+    //
+    //      for(int i = 0; i < stigVal.Length; i++)
+    //        for(int j = 0; j < nInd[i].Length; j++)
+    //          stigMod[nInd[i][j]] += stigVal[i] * dC[j] * 1;
+    //
+    //      Parallel.For(0, stigVal.Length, i =>
+    //        //for(int i = 0; i < stigVal.Length; i++)
+    //        {
+    //        stigVal[i] += stigMod[i];
+    //        stigVal[i] *= evap;
+    //        //if (stigVal[i] > 1) stigVal[i] = 1;
+    //        stigVal[i] = Math.Min(stigVal[i], 1);
+    //
+    //        });
+    //    }
 
     void initPts()
     {
@@ -203,7 +223,7 @@ public class Script_Instance : GH_ScriptInstance
 
       for(int i = 0; i < x; i++)
         for(int j = 0; j < y; j++)
-          stigVal[i * y + j] = 0.0;
+          stigVal[i * y + j] = 0.0;//rnd.NextDouble() * 0.2;// 0.0;
     }
 
             /*
@@ -332,46 +352,62 @@ public class Script_Instance : GH_ScriptInstance
     this. doc = this.RhinoDocument;
 
     //2. Assign input parameters
-        Point3d P0 = default(Point3d);
+        List<Point3d> P0 = null;
     if (inputs[0] != null)
     {
-      P0 = (Point3d)(inputs[0]);
+      P0 = GH_DirtyCaster.CastToList<Point3d>(inputs[0]);
     }
-
-    int n = default(int);
+    List<double> strength = null;
     if (inputs[1] != null)
     {
-      n = (int)(inputs[1]);
+      strength = GH_DirtyCaster.CastToList<double>(inputs[1]);
+    }
+    int n = default(int);
+    if (inputs[2] != null)
+    {
+      n = (int)(inputs[2]);
     }
 
     double evap = default(double);
-    if (inputs[2] != null)
+    if (inputs[3] != null)
     {
-      evap = (double)(inputs[2]);
+      evap = (double)(inputs[3]);
+    }
+
+    double addC = default(double);
+    if (inputs[4] != null)
+    {
+      addC = (double)(inputs[4]);
+    }
+
+    double lossC = default(double);
+    if (inputs[5] != null)
+    {
+      lossC = (double)(inputs[5]);
     }
 
     bool wrap = default(bool);
-    if (inputs[3] != null)
+    if (inputs[6] != null)
     {
-      wrap = (bool)(inputs[3]);
+      wrap = (bool)(inputs[6]);
     }
 
     bool reset = default(bool);
-    if (inputs[4] != null)
+    if (inputs[7] != null)
     {
-      reset = (bool)(inputs[4]);
+      reset = (bool)(inputs[7]);
     }
 
     bool go = default(bool);
-    if (inputs[5] != null)
+    if (inputs[8] != null)
     {
-      go = (bool)(inputs[5]);
+      go = (bool)(inputs[8]);
     }
 
     bool MT = default(bool);
-    if (inputs[6] != null)
+    if (inputs[9] != null)
     {
-      MT = (bool)(inputs[6]);
+      MT = (bool)(inputs[9]);
     }
 
 
@@ -384,7 +420,7 @@ public class Script_Instance : GH_ScriptInstance
 
 
     //4. Invoke RunScript
-    RunScript(P0, n, evap, wrap, reset, go, MT, ref P, ref cPind, ref nIndexes, ref S);
+    RunScript(P0, strength, n, evap, addC, lossC, wrap, reset, go, MT, ref P, ref cPind, ref nIndexes, ref S);
       
     try
     {
